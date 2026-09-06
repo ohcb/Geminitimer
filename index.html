@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>큐브 타이머</title>
+  <style>
+    :root {
+      --bg-color: #000000;
+      --card-bg: #1e1e1e;
+      --accent-color: #448aff;
+      --text-color: #ffffff;
+      --sub-text: #888888;
+      --holding-color: #4caf50;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* 메인 콘텐츠 영역 */
+    .content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .tab-page {
+      display: none;
+      height: 100%;
+      width: 100%;
+      flex-direction: column;
+    }
+
+    .tab-page.active {
+      display: flex;
+    }
+
+    header {
+      padding: 16px;
+      font-size: 20px;
+      font-weight: bold;
+      border-bottom: 1px solid #222;
+      background-color: #111;
+    }
+
+    /* 1. 타이머 화면 */
+    #tab-timer {
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 20px;
+      cursor: pointer;
+    }
+
+    .scramble {
+      font-size: 1.2rem;
+      color: var(--sub-text);
+      margin-bottom: 40px;
+      line-height: 1.5;
+    }
+
+    .timer-display {
+      font-size: 5rem;
+      font-weight: bold;
+      font-variant-numeric: tabular-nums;
+      color: var(--accent-color);
+      transition: color 0.1s;
+    }
+
+    .timer-display.holding {
+      color: var(--holding-color);
+    }
+
+    .timer-hint {
+      margin-top: 20px;
+      color: var(--sub-text);
+      font-size: 0.9rem;
+    }
+
+    /* 리스트 및 카드가 있는 화면 공통 */
+    .list-container {
+      padding: 16px;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .list-item {
+      background-color: var(--card-bg);
+      padding: 16px;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .list-item.clickable {
+      cursor: pointer;
+    }
+
+    .list-item.clickable:hover {
+      background-color: #2a2a2a;
+    }
+
+    /* 하단 내비게이션 바 */
+    .bottom-nav {
+      height: 60px;
+      background-color: var(--card-bg);
+      display: flex;
+      border-top: 1px solid #222;
+    }
+
+    .nav-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: var(--sub-text);
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .nav-item.active {
+      color: var(--accent-color);
+    }
+
+    .nav-icon {
+      font-size: 20px;
+      margin-bottom: 4px;
+    }
+
+    /* 서브 페이지 (모어 하위 메뉴) */
+    .sub-page {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: var(--bg-color);
+      display: none;
+      flex-direction: column;
+      z-index: 10;
+    }
+
+    .sub-page.active {
+      display: flex;
+    }
+
+    .back-btn {
+      cursor: pointer;
+      margin-right: 12px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="content">
+    <!-- 1. 타이머 탭 -->
+    <div id="tab-timer" class="tab-page active">
+      <div class="scramble" id="scramble-text">R2 U' B2 L2 F2 U' L2 U R2 D' F2</div>
+      <div class="timer-display" id="timer-display">0.00</div>
+      <div class="timer-hint" id="timer-hint">화면을 누르고 있다가 떼면 시작</div>
+    </div>
+
+    <!-- 2. 솔브 탭 -->
+    <div id="tab-solves" class="tab-page">
+      <header>솔브 기록</header>
+      <div class="list-container" id="solves-list">
+        <div style="color: var(--sub-text); text-align: center; margin-top: 40px;">기록이 없습니다.</div>
+      </div>
+    </div>
+
+    <!-- 3. 스탯 탭 -->
+    <div id="tab-stats" class="tab-page">
+      <header>통계</header>
+      <div class="list-container">
+        <div class="list-item">
+          <span>총 솔브 횟수</span>
+          <strong id="stat-count">0회</strong>
+        </div>
+        <div class="list-item">
+          <span>최고 기록</span>
+          <strong id="stat-best">-</strong>
+        </div>
+        <div class="list-item">
+          <span>평균 기록</span>
+          <strong id="stat-avg">-</strong>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. 세션 탭 -->
+    <div id="tab-session" class="tab-page">
+      <header>세션 관리</header>
+      <div class="list-container">
+        <div class="list-item">
+          <span>기본 세션 (3x3)</span>
+          <span style="color: var(--accent-color);">활성</span>
+        </div>
+        <div class="list-item">
+          <span>2x2 세션</span>
+          <span style="color: var(--sub-text);">선택</span>
+        </div>
+        <div class="list-item">
+          <span>4x4 세션</span>
+          <span style="color: var(--sub-text);">선택</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. 모어 탭 -->
+    <div id="tab-more" class="tab-page">
+      <header>더보기</header>
+      <div class="list-container">
+        <div class="list-item clickable" onclick="openSubPage('sub-profile')">
+          <div>
+            <div style="font-size: 16px;">큐버 프로필</div>
+            <div style="font-size: 12px; color: var(--sub-text);">내 정보 및 목표 설정</div>
+          </div>
+          <div>&rsaquo;</div>
+        </div>
+        <div class="list-item clickable" onclick="openSubPage('sub-settings')">
+          <div>
+            <div style="font-size: 16px;">설정</div>
+            <div style="font-size: 12px; color: var(--sub-text);">타이머 옵션 및 테마</div>
+          </div>
+          <div>&rsaquo;</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 서브 페이지: 프로필 -->
+    <div id="sub-profile" class="sub-page">
+      <header><span class="back-btn" onclick="closeSubPage('sub-profile')">&lsaquo;</span> 프로필</header>
+      <div class="list-container">
+        <div class="list-item">
+          <span>이름</span>
+          <span>Cuber</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 서브 페이지: 설정 -->
+    <div id="sub-settings" class="sub-page">
+      <header><span class="back-btn" onclick="closeSubPage('sub-settings')">&lsaquo;</span> 설정</header>
+      <div class="list-container">
+        <div class="list-item">
+          <span>인스펙션 타임 (15초)</span>
+          <input type="checkbox">
+        </div>
+        <div class="list-item">
+          <span>사운드 효과</span>
+          <input type="checkbox">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 하단 탭 내비게이션 -->
+  <nav class="bottom-nav">
+    <div class="nav-item active" onclick="switchTab('timer', this)">
+      <div class="nav-icon">⏱</div>
+      <div>타이머</div>
+    </div>
+    <div class="nav-item" onclick="switchTab('solves', this)">
+      <div class="nav-icon">📋</div>
+      <div>솔브</div>
+    </div>
+    <div class="nav-item" onclick="switchTab('stats', this)">
+      <div class="nav-icon">📊</div>
+      <div>스탯</div>
+    </div>
+    <div class="nav-item" onclick="switchTab('session', this)">
+      <div class="nav-icon">📁</div>
+      <div>세션</div>
+    </div>
+    <div class="nav-item" onclick="switchTab('more', this)">
+      <div class="nav-icon">⋯</div>
+      <div>모어</div>
+    </div>
+  </nav>
+
+  <script>
+    // 데이터 상태 관리
+    let solves = [];
+    let isRunning = false;
+    let isHolding = false;
+    let startTime = 0;
+    let timerInterval = null;
+    let holdTimeout = null;
+
+    const timerDisplay = document.getElementById('timer-display');
+    const timerHint = document.getElementById('timer-hint');
+    const timerTab = document.getElementById('tab-timer');
+
+    // 탭 전환
+    function switchTab(tabName, element) {
+      document.querySelectorAll('.tab-page').forEach(page => page.classList.remove('active'));
+      document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+      
+      document.getElementById(`tab-${tabName}`).classList.add('active');
+      element.classList.add('active');
+    }
+
+    // 모어 서브페이지 열기/닫기
+    function openSubPage(id) {
+      document.getElementById(id).classList.add('active');
+    }
+    function closeSubPage(id) {
+      document.getElementById(id).classList.remove('active');
+    }
+
+    // 타이머 이벤트 처리 (클릭 / 터치)
+    function handleStartHold(e) {
+      if (isRunning) {
+        stopTimer();
+        return;
+      }
+      isHolding = true;
+      timerDisplay.classList.add('holding');
+    }
+
+    function handleEndHold(e) {
+      if (isHolding && !isRunning) {
+        isHolding = false;
+        timerDisplay.classList.remove('holding');
+        startTimer();
+      }
+    }
+
+    timerTab.addEventListener('mousedown', handleStartHold);
+    timerTab.addEventListener('mouseup', handleEndHold);
+    timerTab.addEventListener('touchstart', (e) => { e.preventDefault(); handleStartHold(); });
+    timerTab.addEventListener('touchend', (e) => { e.preventDefault(); handleEndHold(); });
+
+    function startTimer() {
+      isRunning = true;
+      startTime = Date.now();
+      timerHint.textContent = "화면을 터치하면 정지합니다.";
+      
+      timerInterval = setInterval(() => {
+        const elapsed = (Date.now() - startTime) / 1000;
+        timerDisplay.textContent = elapsed.toFixed(2);
+      }, 10);
+    }
+
+    function stopTimer() {
+      isRunning = false;
+      clearInterval(timerInterval);
+      const finalTime = parseFloat(((Date.now() - startTime) / 1000).toFixed(2));
+      timerDisplay.textContent = finalTime.toFixed(2);
+      timerHint.textContent = "화면을 누르고 있다가 떼면 시작";
+
+      solves.unshift(finalTime);
+      updateData();
+    }
+
+    // 데이터 업데이트 (솔브 리스트 및 스탯)
+    function updateData() {
+      // 솔브 목록 업데이트
+      const listEl = document.getElementById('solves-list');
+      if (solves.length === 0) {
+        listEl.innerHTML = '<div style="color: var(--sub-text); text-align: center; margin-top: 40px;">기록이 없습니다.</div>';
+      } else {
+        listEl.innerHTML = solves.map((time, index) => `
+          <div class="list-item">
+            <strong>#${solves.length - index}</strong>
+            <span style="font-size: 18px;">${time.toFixed(2)}s</span>
+          </div>
+        `).join('');
+      }
+
+      // 통계 업데이트
+      document.getElementById('stat-count').textContent = `${solves.length}회`;
+      if (solves.length > 0) {
+        const best = Math.min(...solves);
+        const avg = solves.reduce((a, b) => a + b, 0) / solves.length;
+        document.getElementById('stat-best').textContent = `${best.toFixed(2)}s`;
+        document.getElementById('stat-avg').textContent = `${avg.toFixed(2)}s`;
+      }
+    }
+  </script>
+</body>
+</html>
