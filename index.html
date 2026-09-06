@@ -31,12 +31,12 @@
       overflow: hidden;
     }
 
-    /* 메인 콘텐츠 영역 */
     .content {
       flex: 1;
       display: flex;
       flex-direction: column;
       position: relative;
+      overflow: hidden;
     }
 
     .tab-page {
@@ -113,16 +113,13 @@
       cursor: pointer;
     }
 
-    .list-item.clickable:hover {
-      background-color: #2a2a2a;
-    }
-
     /* 하단 내비게이션 바 */
     .bottom-nav {
-      height: 60px;
+      height: 65px;
       background-color: var(--card-bg);
       display: flex;
       border-top: 1px solid #222;
+      z-index: 100;
     }
 
     .nav-item {
@@ -145,7 +142,7 @@
       margin-bottom: 4px;
     }
 
-    /* 서브 페이지 (모어 하위 메뉴) */
+    /* 서브 페이지 */
     .sub-page {
       position: absolute;
       top: 0;
@@ -165,20 +162,19 @@
     .back-btn {
       cursor: pointer;
       margin-right: 12px;
+      padding: 0 10px;
     }
   </style>
 </head>
 <body>
 
   <div class="content">
-    <!-- 1. 타이머 탭 -->
     <div id="tab-timer" class="tab-page active">
       <div class="scramble" id="scramble-text">R2 U' B2 L2 F2 U' L2 U R2 D' F2</div>
       <div class="timer-display" id="timer-display">0.00</div>
-      <div class="timer-hint" id="timer-hint">화면을 누르고 있다가 떼면 시작</div>
+      <div class="timer-hint" id="timer-hint">화면을 클릭/터치하고 있다가 떼면 시작</div>
     </div>
 
-    <!-- 2. 솔브 탭 -->
     <div id="tab-solves" class="tab-page">
       <header>솔브 기록</header>
       <div class="list-container" id="solves-list">
@@ -186,7 +182,6 @@
       </div>
     </div>
 
-    <!-- 3. 스탯 탭 -->
     <div id="tab-stats" class="tab-page">
       <header>통계</header>
       <div class="list-container">
@@ -205,7 +200,6 @@
       </div>
     </div>
 
-    <!-- 4. 세션 탭 -->
     <div id="tab-session" class="tab-page">
       <header>세션 관리</header>
       <div class="list-container">
@@ -224,7 +218,6 @@
       </div>
     </div>
 
-    <!-- 5. 모어 탭 -->
     <div id="tab-more" class="tab-page">
       <header>더보기</header>
       <div class="list-container">
@@ -245,7 +238,6 @@
       </div>
     </div>
 
-    <!-- 서브 페이지: 프로필 -->
     <div id="sub-profile" class="sub-page">
       <header><span class="back-btn" onclick="closeSubPage('sub-profile')">&lsaquo;</span> 프로필</header>
       <div class="list-container">
@@ -256,7 +248,6 @@
       </div>
     </div>
 
-    <!-- 서브 페이지: 설정 -->
     <div id="sub-settings" class="sub-page">
       <header><span class="back-btn" onclick="closeSubPage('sub-settings')">&lsaquo;</span> 설정</header>
       <div class="list-container">
@@ -272,7 +263,6 @@
     </div>
   </div>
 
-  <!-- 하단 탭 내비게이션 -->
   <nav class="bottom-nav">
     <div class="nav-item active" onclick="switchTab('timer', this)">
       <div class="nav-icon">⏱</div>
@@ -297,36 +287,39 @@
   </nav>
 
   <script>
-    // 데이터 상태 관리
     let solves = [];
     let isRunning = false;
     let isHolding = false;
     let startTime = 0;
     let timerInterval = null;
-    let holdTimeout = null;
 
     const timerDisplay = document.getElementById('timer-display');
     const timerHint = document.getElementById('timer-hint');
     const timerTab = document.getElementById('tab-timer');
 
-    // 탭 전환
+    // 탭 전환 함수
     function switchTab(tabName, element) {
+      // 모든 서브페이지 닫기
+      document.querySelectorAll('.sub-page').forEach(sub => sub.classList.remove('active'));
+      
+      // 모든 탭 페이지 및 버튼 비활성화
       document.querySelectorAll('.tab-page').forEach(page => page.classList.remove('active'));
       document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
       
+      // 선택한 탭 활성화
       document.getElementById(`tab-${tabName}`).classList.add('active');
       element.classList.add('active');
     }
 
-    // 모어 서브페이지 열기/닫기
     function openSubPage(id) {
       document.getElementById(id).classList.add('active');
     }
+
     function closeSubPage(id) {
       document.getElementById(id).classList.remove('active');
     }
 
-    // 타이머 이벤트 처리 (클릭 / 터치)
+    // 타이머 동작 로직
     function handleStartHold(e) {
       if (isRunning) {
         stopTimer();
@@ -344,15 +337,14 @@
       }
     }
 
+    // 마우스 및 터치 이벤트 연결
     timerTab.addEventListener('mousedown', handleStartHold);
     timerTab.addEventListener('mouseup', handleEndHold);
-    timerTab.addEventListener('touchstart', (e) => { e.preventDefault(); handleStartHold(); });
-    timerTab.addEventListener('touchend', (e) => { e.preventDefault(); handleEndHold(); });
 
     function startTimer() {
       isRunning = true;
       startTime = Date.now();
-      timerHint.textContent = "화면을 터치하면 정지합니다.";
+      timerHint.textContent = "화면을 터치/클릭하면 정지합니다.";
       
       timerInterval = setInterval(() => {
         const elapsed = (Date.now() - startTime) / 1000;
@@ -371,9 +363,7 @@
       updateData();
     }
 
-    // 데이터 업데이트 (솔브 리스트 및 스탯)
     function updateData() {
-      // 솔브 목록 업데이트
       const listEl = document.getElementById('solves-list');
       if (solves.length === 0) {
         listEl.innerHTML = '<div style="color: var(--sub-text); text-align: center; margin-top: 40px;">기록이 없습니다.</div>';
@@ -386,7 +376,6 @@
         `).join('');
       }
 
-      // 통계 업데이트
       document.getElementById('stat-count').textContent = `${solves.length}회`;
       if (solves.length > 0) {
         const best = Math.min(...solves);
